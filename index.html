@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReFilament — Reciclaje para Impresión 3D</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;1,300&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+<style>
+:root {
+  --bg: #0a0c0f;
+  --surface: #111418;
+  --surface2: #181c22;
+  --accent: #00e5b0;
+  --accent2: #0cf;
+  --warm: #ff6b35;
+  --text: #eaeef4;
+  --muted: #6b7685;
+  --border: rgba(255,255,255,0.07);
+  --glow: rgba(0,229,176,0.15);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  overflow-x: hidden;
+  cursor: none;
+}
+
+/* CUSTOM CURSOR */
+.cursor {
+  position: fixed;
+  width: 8px; height: 8px;
+  background: var(--accent);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  transition: transform 0.15s ease;
+  mix-blend-mode: exclusion;
+}
+.cursor-ring {
+  position: fixed;
+  width: 36px; height: 36px;
+  border: 1.5px solid var(--accent);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9998;
+  opacity: 0.5;
+  transition: transform 0.3s ease, width 0.2s, height 0.2s, opacity 0.2s;
+}
+
+/* NOISE OVERLAY */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.4;
+}
+
+/* NAV */
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 60px;
+  background: rgba(10,12,15,0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.6rem;
+  letter-spacing: 3px;
+  color: var(--accent);
+}
+
+.nav-links { display: flex; gap: 40px; }
+.nav-links a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.8rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  transition: color 0.3s;
+  font-weight: 500;
+}
+.nav-links a:hover { color: var(--text); }
+
+/* HERO */
+.hero {
+  min-height: 100vh;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 60px;
+  overflow: hidden;
+}
+
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 60% at 70% 50%, rgba(0,229,176,0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 40% at 20% 80%, rgba(0,204,255,0.04) 0%, transparent 60%);
+}
+
+.hero-lines {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+.hero-tag {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--accent);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  margin-bottom: 24px;
+  opacity: 0;
+}
+
+.hero h1 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(4rem, 9vw, 9rem);
+  line-height: 0.9;
+  letter-spacing: 2px;
+  opacity: 0;
+  max-width: 900px;
+}
+
+.hero h1 span { color: var(--accent); }
+
+.hero-sub {
+  max-width: 500px;
+  margin-top: 32px;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--muted);
+  font-weight: 300;
+  opacity: 0;
+}
+
+.hero-cta {
+  display: flex;
+  gap: 16px;
+  margin-top: 48px;
+  opacity: 0;
+}
+
+.btn-primary {
+  padding: 14px 36px;
+  background: var(--accent);
+  color: #000;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border: none;
+  cursor: none;
+  text-decoration: none;
+  display: inline-block;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 40px rgba(0,229,176,0.3);
+}
+
+.btn-ghost {
+  padding: 14px 36px;
+  background: transparent;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border: 1px solid rgba(255,255,255,0.15);
+  cursor: none;
+  text-decoration: none;
+  display: inline-block;
+  transition: border-color 0.2s, color 0.2s;
+}
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+.hero-stat-row {
+  position: absolute;
+  bottom: 60px; left: 60px;
+  display: flex;
+  gap: 60px;
+  opacity: 0;
+}
+.hero-stat .num {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2.5rem;
+  color: var(--accent);
+  letter-spacing: 2px;
+}
+.hero-stat .lbl {
+  font-size: 0.75rem;
+  color: var(--muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+/* SCROLL INDICATOR */
+.scroll-hint {
+  position: absolute;
+  bottom: 60px; right: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+}
+.scroll-hint span {
+  font-size: 0.65rem;
+  color: var(--muted);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  writing-mode: vertical-rl;
+}
+.scroll-line {
+  width: 1px;
+  height: 60px;
+  background: linear-gradient(to bottom, var(--accent), transparent);
+  animation: scrollLine 1.5s ease-in-out infinite;
+}
+@keyframes scrollLine {
+  0% { transform: scaleY(0); transform-origin: top; }
+  50% { transform: scaleY(1); transform-origin: top; }
+  51% { transform: scaleY(1); transform-origin: bottom; }
+  100% { transform: scaleY(0); transform-origin: bottom; }
+}
+
+/* SECTION BASE */
+section {
+  position: relative;
+  z-index: 1;
+  padding: 120px 60px;
+}
+
+.section-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--accent);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.section-label::before {
+  content: '';
+  display: inline-block;
+  width: 30px;
+  height: 1px;
+  background: var(--accent);
+}
+
+.section-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(2.5rem, 5vw, 4.5rem);
+  letter-spacing: 2px;
+  line-height: 1;
+  margin-bottom: 60px;
+}
+
+/* PROCESO */
+#proceso { background: var(--surface); }
+
+.proceso-intro {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: center;
+  margin-bottom: 100px;
+}
+
+.proceso-text p {
+  font-size: 1.05rem;
+  line-height: 1.8;
+  color: var(--muted);
+  font-weight: 300;
+  margin-bottom: 20px;
+}
+
+.proceso-text p strong { color: var(--text); font-weight: 500; }
+
+.proceso-img {
+  position: relative;
+  height: 420px;
+  overflow: hidden;
+  clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
+}
+.proceso-img img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s ease;
+}
+.proceso-img:hover img { transform: scale(1.05); }
+.proceso-img::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(0,229,176,0.1) 0%, transparent 50%);
+  pointer-events: none;
+}
+.proceso-img-label {
+  position: absolute;
+  bottom: 16px; right: 16px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--accent);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  background: rgba(0,0,0,0.7);
+  padding: 6px 12px;
+}
+
+/* STEPS */
+.steps-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2px;
+}
+
+.step-card {
+  position: relative;
+  background: var(--surface2);
+  padding: 36px 24px;
+  overflow: hidden;
+  cursor: none;
+  transition: background 0.3s;
+  opacity: 0;
+}
+.step-card:hover { background: rgba(0,229,176,0.06); }
+
+.step-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.4s ease;
+}
+.step-card:hover::before { transform: scaleX(1); }
+
+.step-num {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 4rem;
+  color: rgba(0,229,176,0.1);
+  line-height: 1;
+  margin-bottom: 16px;
+  transition: color 0.3s;
+}
+.step-card:hover .step-num { color: rgba(0,229,176,0.25); }
+
+.step-icon {
+  font-size: 1.8rem;
+  margin-bottom: 16px;
+}
+
+.step-title {
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+
+.step-desc {
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--muted);
+  font-weight: 300;
+}
+
+/* VISUAL GALLERY */
+#imagenes { background: var(--bg); }
+
+.gallery-masonry {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 300px);
+  gap: 12px;
+}
+
+.gallery-item {
+  position: relative;
+  overflow: hidden;
+  cursor: none;
+  opacity: 0;
+}
+.gallery-item:nth-child(1) { grid-column: 1; grid-row: 1 / 3; }
+.gallery-item:nth-child(4) { grid-column: 3; grid-row: 1 / 3; }
+
+.gallery-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s ease;
+  display: block;
+}
+.gallery-item:hover img { transform: scale(1.08); }
+
+.gallery-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  display: flex;
+  align-items: flex-end;
+  padding: 20px;
+}
+.gallery-item:hover .gallery-overlay { opacity: 1; }
+
+.gallery-overlay-text {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--accent);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+/* IMPACTO */
+#impacto { background: var(--surface); }
+
+.impacto-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: start;
+}
+
+.metric-card {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.metric-item { opacity: 0; }
+
+.metric-label {
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+  font-family: 'Space Mono', monospace;
+}
+
+.metric-bar-wrap {
+  position: relative;
+  height: 4px;
+  background: rgba(255,255,255,0.06);
+  margin-bottom: 8px;
+}
+.metric-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  width: 0;
+  position: relative;
+}
+.metric-bar::after {
+  content: '';
+  position: absolute;
+  right: 0; top: 50%;
+  transform: translateY(-50%);
+  width: 8px; height: 8px;
+  background: var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--accent);
+}
+
+.metric-value {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2.8rem;
+  color: var(--accent);
+  letter-spacing: 2px;
+}
+
+.impacto-img-col {
+  position: sticky;
+  top: 120px;
+  display: grid;
+  gap: 12px;
+}
+
+.impacto-img {
+  position: relative;
+  overflow: hidden;
+  height: 220px;
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+  opacity: 0;
+}
+.impacto-img img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s;
+}
+.impacto-img:hover img { transform: scale(1.05); }
+
+/* TÉCNICO */
+#tecnico { background: var(--bg); }
+
+.tecnico-wrap {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: start;
+}
+
+.spec-cards { display: grid; gap: 16px; }
+
+.spec-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 28px;
+  position: relative;
+  overflow: hidden;
+  opacity: 0;
+  transition: border-color 0.3s;
+}
+.spec-card:hover { border-color: rgba(0,229,176,0.3); }
+
+.spec-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: var(--accent);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 0.4s;
+}
+.spec-card:hover::before { transform: scaleY(1); }
+
+.spec-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.spec-card-title {
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.spec-badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.65rem;
+  background: rgba(0,229,176,0.1);
+  color: var(--accent);
+  padding: 4px 10px;
+  letter-spacing: 1px;
+}
+
+.spec-card p {
+  font-size: 0.88rem;
+  line-height: 1.7;
+  color: var(--muted);
+  font-weight: 300;
+}
+
+.tecnico-img-col { display: flex; flex-direction: column; gap: 12px; }
+
+.tech-img {
+  position: relative;
+  overflow: hidden;
+  height: 250px;
+  opacity: 0;
+}
+.tech-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s; }
+.tech-img:hover img { transform: scale(1.05); }
+.tech-img::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, rgba(0,229,176,0.08) 0%, transparent 60%);
+}
+
+.tech-code {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 24px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.72rem;
+  line-height: 1.8;
+  color: var(--muted);
+  opacity: 0;
+}
+.tech-code .kw { color: var(--accent); }
+.tech-code .val { color: var(--accent2); }
+.tech-code .cm { color: #3d4a5a; }
+
+/* CTA SECTION */
+#cta {
+  background: var(--surface);
+  text-align: center;
+  padding: 160px 60px;
+}
+
+.cta-line {
+  width: 1px;
+  height: 80px;
+  background: linear-gradient(to bottom, transparent, var(--accent));
+  margin: 0 auto 40px;
+}
+
+.cta-tag {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--accent);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+
+.cta h2 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(3rem, 7vw, 7rem);
+  letter-spacing: 3px;
+  line-height: 1;
+  margin-bottom: 24px;
+}
+.cta h2 em { font-style: normal; color: var(--accent); }
+
+.cta p {
+  max-width: 480px;
+  margin: 0 auto 48px;
+  color: var(--muted);
+  font-weight: 300;
+  line-height: 1.7;
+}
+
+/* FOOTER */
+footer {
+  background: #050608;
+  padding: 40px 60px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--border);
+}
+
+.footer-logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.4rem;
+  letter-spacing: 3px;
+  color: var(--accent);
+}
+
+.footer-text {
+  font-size: 0.75rem;
+  color: var(--muted);
+  letter-spacing: 1px;
+}
+
+.footer-tag {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--muted);
+  letter-spacing: 2px;
+}
+
+/* REVEAL UTILITY */
+.reveal { opacity: 0; transform: translateY(30px); }
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--accent); }
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  nav { padding: 16px 24px; }
+  section { padding: 80px 24px; }
+  .hero { padding: 0 24px; }
+  .proceso-intro { grid-template-columns: 1fr; }
+  .steps-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .gallery-masonry { grid-template-columns: 1fr 1fr; grid-template-rows: auto; }
+  .gallery-item:nth-child(1), .gallery-item:nth-child(4) { grid-column: auto; grid-row: auto; }
+  .impacto-grid { grid-template-columns: 1fr; }
+  .tecnico-wrap { grid-template-columns: 1fr; }
+  .hero-stat-row { display: none; }
+  .hero h1 { font-size: 3.5rem; }
+  footer { flex-direction: column; gap: 16px; text-align: center; }
+  .nav-links { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<nav>
+  <div class="nav-logo">Reciclando filamento con botellas plasticas</div>
+  <div class="nav-links">
+    <a href="#proceso">Proceso</a>
+    <a href="#imagenes">Visual</a>
+    <a href="#impacto">Impacto</a>
+    <a href="#tecnico">Ingeniería</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero" id="inicio">
+  <div class="hero-bg"></div>
+  <div class="hero-lines"></div>
+
+  <div class="hero-tag">// Tecnología Sostenible 2026</div>
+  <h1>PLÁSTICO<br><span>RECICLADO</span><br>FILAMENTO</h1>
+  <p class="hero-sub">Transformamos residuos post-consumo en filamento de alta precisión para impresión 3D, cerrando el ciclo de la economía circular.</p>
+  <div class="hero-cta">
+    <a href="#proceso" class="btn-primary">Explorar Proceso</a>
+    <a href="#impacto" class="btn-ghost">Ver Impacto</a>
+  </div>
+
+  <div class="hero-stat-row">
+    <div class="hero-stat">
+      <div class="num">80%</div>
+      <div class="lbl">Menos residuos</div>
+    </div>
+    <div class="hero-stat">
+      <div class="num">60%</div>
+      <div class="lbl">Ahorro energético</div>
+    </div>
+    <div class="hero-stat">
+      <div class="num">1.75mm</div>
+      <div class="lbl">Precisión filamento</div>
+    </div>
+  </div>
+
+  <div class="scroll-hint">
+    <div class="scroll-line"></div>
+    <span>Scroll</span>
+  </div>
+</section>
+
+<!-- PROCESO -->
+<section id="proceso">
+  <div class="section-label">01 — Proceso</div>
+  <div class="section-title reveal">Ciclo Completo<br>de Transformación</div>
+
+  <div class="proceso-intro">
+    <div class="proceso-text reveal">
+      <p>El reciclaje de plástico para impresión 3D implica convertir <strong>residuos post-consumo y post-industriales</strong> en filamento funcional mediante procesos térmicos y mecánicos controlados.</p>
+      <p>Este ciclo no solo reduce la cantidad de desechos que terminan en vertederos, sino que ofrece una alternativa <strong>sostenible y económica</strong> a los filamentos comerciales, impulsando la economía circular y la innovación en fabricación aditiva.</p>
+    </div>
+    <div class="proceso-img reveal">
+      <img src="conbotellas.jpg" alt="Reciclaje industrial">
+      <div class="proceso-img-label">Planta de Procesamiento</div>
+    </div>
+  </div>
+
+  <div class="steps-grid">
+    <div class="step-card">
+      <div class="step-num">01</div>
+      <div class="step-icon">♻️</div>
+      <div class="step-title">Recolección</div>
+      <div class="step-desc">Recopilación de residuos plásticos PET, HDPE y PLA de fuentes industriales y domésticas certificadas.</div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">02</div>
+      <div class="step-icon">🧪</div>
+      <div class="step-title">Clasificación</div>
+      <div class="step-desc">Separación por tipo de polímero mediante espectroscopía NIR para garantizar pureza del material.</div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">03</div>
+      <div class="step-icon">⚙️</div>
+      <div class="step-title">Triturado</div>
+      <div class="step-desc">Reducción mecánica a pellets uniformes de 3–5mm con molino de cuchillas de alta precisión.</div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">04</div>
+      <div class="step-icon">🔥</div>
+      <div class="step-title">Extrusión</div>
+      <div class="step-desc">Fusión y formado del filamento a temperatura controlada entre 180°C y 220°C según el polímero.</div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">05</div>
+      <div class="step-icon">🖨️</div>
+      <div class="step-title">Control QA</div>
+      <div class="step-desc">Calibración láser del diámetro a ±0.02mm y bobinado automatizado listo para impresión.</div>
+    </div>
+  </div>
+</section>
+
+<!-- GALLERY -->
+<section id="imagenes">
+  <div class="section-label">02 — Visual</div>
+  <div class="section-title reveal">Proceso<br>en Imágenes</div>
+
+  <div class="gallery-masonry">
+    <div class="gallery-item">
+      <img src="sacandofilamentoconbottela.jpg" alt="Maquinaria industrial">
+      <div class="gallery-overlay"><div class="gallery-overlay-text">Planta industrial</div></div>
+    </div>
+    <div class="gallery-item">
+      <img src="impresora3d.jpg" alt="Tecnología de punta">
+      <div class="gallery-overlay"><div class="gallery-overlay-text">Tecnología de punta</div></div>
+    </div>
+    <div class="gallery-item">
+      <img src="botella.jpg" alt="Clasificación de materiales">
+      <div class="gallery-overlay"><div class="gallery-overlay-text">Clasificación de materiales</div></div>
+    </div>
+    <div class="gallery-item">
+      <img src="impresora3d.jpg" alt="Impresión 3D">
+      <div class="gallery-overlay"><div class="gallery-overlay-text">Impresión 3D</div></div>
+    </div>
+    <div class="gallery-item">
+      <img src="filamento.webp" alt="Control de calidad">
+      <div class="gallery-overlay"><div class="gallery-overlay-text">Control de calidad</div></div>
+    </div>
+    <div class="gallery-item">
+      <img src="botella.jpg" alt="Economía circular">
+      <div class="gallery-overlay"><div class="gallery-overlay-text">Economía circular</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- IMPACTO -->
+<section id="impacto">
+  <div class="section-label">03 — Impacto</div>
+  <div class="section-title reveal">Impacto<br>Ambiental</div>
+
+  <div class="impacto-grid">
+    <div class="metric-card">
+      <div class="metric-item">
+        <div class="metric-label">Reducción de plástico en vertederos</div>
+        <div class="metric-bar-wrap"><div class="metric-bar" data-target="80"></div></div>
+        <div class="metric-value">80%</div>
+      </div>
+      <div class="metric-item">
+        <div class="metric-label">Ahorro energético vs producción virgen</div>
+        <div class="metric-bar-wrap"><div class="metric-bar" data-target="60"></div></div>
+        <div class="metric-value">60%</div>
+      </div>
+      <div class="metric-item">
+        <div class="metric-label">Reducción huella de carbono</div>
+        <div class="metric-bar-wrap"><div class="metric-bar" data-target="40"></div></div>
+        <div class="metric-value">40%</div>
+      </div>
+      <div class="metric-item">
+        <div class="metric-label">Ciclos de reciclaje posibles (PET)</div>
+        <div class="metric-bar-wrap"><div class="metric-bar" data-target="75"></div></div>
+        <div class="metric-value">7× ciclos</div>
+      </div>
+    </div>
+
+    <div class="impacto-img-col">
+      <div class="impacto-img">
+        <img src="conbotellas.jpg" alt="Naturaleza">
+      </div>
+      <div class="impacto-img">
+        <img src="filamento.webp" alt="Energía sostenible">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TÉCNICO -->
+<section id="tecnico">
+  <div class="section-label">04 — Ingeniería</div>
+  <div class="section-title reveal">Especificaciones<br>Técnicas</div>
+
+  <div class="tecnico-wrap">
+    <div class="spec-cards">
+      <div class="spec-card">
+        <div class="spec-card-head">
+          <div class="spec-card-title">Control de Temperatura</div>
+          <div class="spec-badge">PLA / PETG</div>
+        </div>
+        <p>El proceso de extrusión requiere control preciso entre <strong style="color:var(--text)">180°C y 220°C</strong> para garantizar fusión homogénea sin degradación del polímero. Zonas térmicas independientes por tornillo.</p>
+      </div>
+      <div class="spec-card">
+        <div class="spec-card-head">
+          <div class="spec-card-title">Precisión Dimensional</div>
+          <div class="spec-badge">±0.02mm</div>
+        </div>
+        <p>Calibración continua mediante sensor láser de diámetro. Compatibilidad con diámetros estándar de <strong style="color:var(--text)">1.75mm y 2.85mm</strong> para todas las impresoras FDM del mercado.</p>
+      </div>
+      <div class="spec-card">
+        <div class="spec-card-head">
+          <div class="spec-card-title">Control de Humedad</div>
+          <div class="spec-badge">Crítico</div>
+        </div>
+        <p>El material debe secarse a <strong style="color:var(--text)">&lt;0.1% humedad residual</strong> antes de extrusión. La humedad excesiva genera burbujas, filamento quebradizo y defectos en impresión.</p>
+      </div>
+      <div class="spec-card">
+        <div class="spec-card-head">
+          <div class="spec-card-title">Tornillo sin Fin</div>
+          <div class="spec-badge">L/D 25:1</div>
+        </div>
+        <p>Geometría de tornillo especializada para plástico reciclado con zonas de compresión, fusión y dosificación. Relación <strong style="color:var(--text)">L/D 25:1</strong> para homogeneización completa del fundido.</p>
+      </div>
+    </div>
+
+    <div class="tecnico-img-col">
+      <div class="tech-img">
+        <img src="sacandofilamentoconbottela.jpg" alt="Ingeniería 3D">
+      </div>
+      <div class="tech-code">
+        <div><span class="cm">// Parámetros de extrusión</span></div>
+        <div><span class="kw">TEMP_ZONE_1</span> = <span class="val">185°C</span> <span class="cm">// alimentación</span></div>
+        <div><span class="kw">TEMP_ZONE_2</span> = <span class="val">200°C</span> <span class="cm">// compresión</span></div>
+        <div><span class="kw">TEMP_ZONE_3</span> = <span class="val">215°C</span> <span class="cm">// dosificación</span></div>
+        <div><span class="kw">DIAMETER</span>   = <span class="val">1.750mm</span> <span class="cm">// target</span></div>
+        <div><span class="kw">TOLERANCE</span>  = <span class="val">±0.020mm</span></div>
+        <div><span class="kw">RPM</span>        = <span class="val">45–60</span></div>
+        <div><span class="kw">HUMIDITY</span>   = <span class="val">&lt; 0.1%</span></div>
+      </div>
+      <div class="tech-img">
+        <img src="impresora3d.jpg" alt="Electrónica precisión">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section id="cta">
+  <div class="cta-line"></div>
+  <div class="cta-tag">// Únete al movimiento</div>
+  <h2 class="reveal">EL FUTURO<br>ES <em>CIRCULAR</em></h2>
+  <p class="reveal">Cada kilogramo de plástico reciclado es un kilogramo que no llega al océano. La tecnología ya existe — la decisión es ahora.</p>
+  <div class="reveal">
+    <a href="#proceso" class="btn-primary">Conocer más</a>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-logo">ReFilament</div>
+  <div class="footer-text">Copyright 2026 Juan Carlos Balcarcel Pérez — Universidad de El Salvador</div>
+  <div class="footer-tag">// Proyecto 2026</div>
+</footer>
+
+<script>
+/* CURSOR */
+const cursor = document.getElementById('cursor');
+const ring = document.getElementById('cursorRing');
+let mx = 0, my = 0, rx = 0, ry = 0;
+
+document.addEventListener('mousemove', e => {
+  mx = e.clientX; my = e.clientY;
+  cursor.style.left = mx - 4 + 'px';
+  cursor.style.top = my - 4 + 'px';
+});
+
+function animRing() {
+  rx += (mx - rx) * 0.12;
+  ry += (my - ry) * 0.12;
+  ring.style.left = rx - 18 + 'px';
+  ring.style.top = ry - 18 + 'px';
+  requestAnimationFrame(animRing);
+}
+animRing();
+
+document.querySelectorAll('a, button, .step-card, .gallery-item, .spec-card').forEach(el => {
+  el.addEventListener('mouseenter', () => {
+    ring.style.width = '60px';
+    ring.style.height = '60px';
+    ring.style.opacity = '0.8';
+  });
+  el.addEventListener('mouseleave', () => {
+    ring.style.width = '36px';
+    ring.style.height = '36px';
+    ring.style.opacity = '0.5';
+  });
+});
+
+/* HERO ANIMATION */
+anime.timeline({ easing: 'easeOutExpo' })
+  .add({ targets: '.hero-tag', opacity: [0,1], translateY: [20,0], duration: 800 })
+  .add({ targets: '.hero h1', opacity: [0,1], translateY: [40,0], duration: 900 }, '-=400')
+  .add({ targets: '.hero-sub', opacity: [0,1], translateY: [20,0], duration: 700 }, '-=500')
+  .add({ targets: '.hero-cta', opacity: [0,1], translateY: [20,0], duration: 700 }, '-=400')
+  .add({ targets: '.hero-stat-row', opacity: [0,1], translateY: [10,0], duration: 600 }, '-=300')
+  .add({ targets: '.scroll-hint', opacity: [0,0.6], duration: 600 }, '-=200');
+
+/* INTERSECTION OBSERVER */
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (!e.isIntersecting) return;
+
+    const el = e.target;
+
+    if (el.classList.contains('reveal')) {
+      anime({ targets: el, translateY: [30, 0], opacity: [0, 1], duration: 900, easing: 'easeOutExpo' });
+    }
+    if (el.classList.contains('step-card')) {
+      anime({ targets: el, translateY: [40, 0], opacity: [0, 1], duration: 800, delay: parseInt(el.dataset.delay || 0), easing: 'easeOutExpo' });
+    }
+    if (el.classList.contains('gallery-item')) {
+      anime({ targets: el, scale: [0.95, 1], opacity: [0, 1], duration: 700, delay: parseInt(el.dataset.delay || 0), easing: 'easeOutExpo' });
+    }
+    if (el.classList.contains('metric-item')) {
+      anime({ targets: el, translateX: [-30, 0], opacity: [0, 1], duration: 700, delay: parseInt(el.dataset.delay || 0), easing: 'easeOutExpo' });
+      const bar = el.querySelector('.metric-bar');
+      if (bar) {
+        anime({ targets: bar, width: bar.dataset.target + '%', duration: 1400, delay: parseInt(el.dataset.delay || 0) + 200, easing: 'easeInOutQuart' });
+      }
+    }
+    if (el.classList.contains('spec-card') || el.classList.contains('impacto-img') || el.classList.contains('tech-img') || el.classList.contains('tech-code')) {
+      anime({ targets: el, translateY: [30, 0], opacity: [0, 1], duration: 800, delay: parseInt(el.dataset.delay || 0), easing: 'easeOutExpo' });
+    }
+
+    io.unobserve(el);
+  });
+}, { threshold: 0.12 });
+
+/* Stagger delays */
+document.querySelectorAll('.step-card').forEach((el, i) => { el.dataset.delay = i * 100; io.observe(el); });
+document.querySelectorAll('.gallery-item').forEach((el, i) => { el.dataset.delay = i * 80; io.observe(el); });
+document.querySelectorAll('.metric-item').forEach((el, i) => { el.dataset.delay = i * 150; io.observe(el); });
+document.querySelectorAll('.spec-card').forEach((el, i) => { el.dataset.delay = i * 100; io.observe(el); });
+document.querySelectorAll('.impacto-img').forEach((el, i) => { el.dataset.delay = i * 150; io.observe(el); });
+document.querySelectorAll('.tech-img, .tech-code').forEach((el, i) => { el.dataset.delay = i * 120; io.observe(el); });
+document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+/* NAV active highlight on scroll */
+const sections = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('.nav-links a');
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(s => {
+    if (window.scrollY >= s.offsetTop - 150) current = s.id;
+  });
+  navLinks.forEach(a => {
+    a.style.color = a.getAttribute('href') === '#' + current ? 'var(--text)' : '';
+  });
+});
+</script>
+</body>
+</html>
